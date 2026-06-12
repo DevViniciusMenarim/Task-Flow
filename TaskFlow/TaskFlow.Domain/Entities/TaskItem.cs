@@ -11,7 +11,6 @@ public class TaskItem
     public DateTime? DueDate { get; private set; }
     public Enums.TaskStatus Status { get; private set; }
 
-    // Chave estrangeira e propriedade de navegação para o Usuário
     public Guid UserId { get; private set; }
     public User User { get; private set; }
 
@@ -20,13 +19,12 @@ public class TaskItem
         Id = Guid.NewGuid();
         Title = title;
         Description = description;
-        CreatedAt = DateTime.UtcNow; // Sempre salve datas em UTC em sistemas escaláveis
+        CreatedAt = DateTime.UtcNow;
         DueDate = dueDate;
-        Status = Enums.TaskStatus.Pending; // Toda tarefa nasce como pendente
+        Status = Enums.TaskStatus.Pending;
         UserId = userId;
     }
 
-    // Método focado em alterar o status (Regra de Negócio encapsulada)
     public void UpdateStatus(Enums.TaskStatus newStatus)
     {
         Status = newStatus;
