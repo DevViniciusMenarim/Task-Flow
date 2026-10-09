@@ -1,0 +1,9 @@
+@TaskFlow.API_HostAddress = http://127.0.0.1:5188
+
+GET {{TaskFlow.API_HostAddress}}/api/Users/search?page=1&pageSize=20
+Accept: application/json
+
+###
+
+GET {{TaskFlow.API_HostAddress}}/api/Tasks/search?page=1&pageSize=20
+Accept: application/json

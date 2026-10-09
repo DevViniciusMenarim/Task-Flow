@@ -1,127 +1,79 @@
-# 🚀 TaskFlow - Sistema Full-Stack (React + .NET 8)
+# Task Flow
 
-Uma aplicação Full-Stack corporativa desenvolvida com **React (TypeScript)** no Front-end e **C# / .NET 8** no Back-end, focada em escalabilidade, manutenibilidade e aplicação de padrões rigorosos de engenharia de software.
+## Introdução
 
-O projeto consiste num sistema completo de gestão de Tarefas e Usuários. A API foi construída seguindo os princípios da **Arquitetura Limpa (Clean Architecture)**, mantendo as regras de negócio totalmente isoladas de detalhes de infraestrutura, enquanto a interface web consome estes dados de forma reativa, tipada e transparente.
+Task Flow é uma aplicação web para organizar tarefas, pessoas responsáveis e prazos. Você pode criar subtarefas, acompanhar o progresso e encontrar o trabalho da equipe por filtros. O projeto foi pensado para uso local, sem autenticação; o banco começa vazio para você cadastrar as primeiras pessoas e tarefas.
 
----
+## Tecnologias e arquitetura
 
-## 🛠️ Tecnologias e Padrões Utilizados
+- **Frontend:** React, TypeScript, React Router e Vite.
+- **Backend:** ASP.NET Core 10, EF Core 10 e SQL Server.
+- **Docker Compose:** inicia o banco, aplica as migrações e publica a aplicação.
 
-Este projeto foi desenhado para simular o ambiente e as exigências técnicas de grandes sistemas empresariais, utilizando a seguinte stack:
+```mermaid
+flowchart LR
+    N[Navegador] --> F[Frontend React]
+    F -->|/api| A[API ASP.NET Core]
+    A --> B[(SQL Server)]
+```
 
-### Back-end (API)
-* **Linguagem & Framework:** C# 12 e .NET 8
-* **Banco de Dados:** SQL Server
-* **ORM:** Entity Framework Core (Abordagem Code-First)
-* **Documentação da API:** Swagger (OpenAPI)
-* **Arquitetura:** Clean Architecture (Domínio, Aplicação, Infraestrutura e API)
-* **Padrões de Projeto (Design Patterns) Aplicados:**
-  * **Repository Pattern:** Abstração completa do acesso aos dados.
-  * **Dependency Injection:** Baixo acoplamento gerenciado pelo contêiner nativo do .NET.
-  * **Data Transfer Objects (DTOs):** Tráfego de dados seguro e performático.
+O frontend organiza as páginas em `Frontend/src/app` e as funcionalidades em `Frontend/src/features`. O backend separa entidades em `Domain`, regras em `Application`, acesso a dados em `Infrastructure` e endpoints em `API`.
 
-### Front-end (Web)
-* **Framework:** React com Vite
-* **Linguagem:** TypeScript (Garantindo tipagem estrita no espelhamento dos DTOs do Back-end)
-* **Cliente HTTP:** Axios para consumo das rotas RESTful
-* **Gerenciamento de Estado:** Hooks nativos do React (`useState`, `useEffect`)
+## Como executar
 
----
+### Com Docker
 
-## 🏗️ Estrutura da Solução
+**Pré-requisitos:** Docker com Compose e contêineres Linux em um computador x86-64 (Intel ou AMD). O SQL Server precisa de pelo menos 2 GB de RAM disponíveis; reserve mais memória para a API e a construção das imagens.
 
-A divisão de pastas do ecossistema foi estruturada de forma a garantir a máxima separação de responsabilidades (*Separation of Concerns*):
+1. Na raiz do repositório, copie `.env.example` para `.env` (`Copy-Item .env.example .env` no PowerShell ou `cp .env.example .env` no Bash).
+2. Edite `.env` e defina `MSSQL_SA_PASSWORD` com pelo menos oito caracteres, incluindo maiúscula, minúscula, número e símbolo. Evite ponto e vírgula, aspas e cifrão. O arquivo `.env` é ignorado pelo Git. Se a porta 5173 estiver ocupada, altere `WEB_PORT`.
+3. Inicie os serviços com `docker compose up --build -d --wait` e abra [http://127.0.0.1:5173](http://127.0.0.1:5173), ou a porta configurada em `WEB_PORT`.
 
-### Solução .NET (Back-end)
-1. **`TaskFlow.Domain`:** O coração do sistema. Contém as Entidades de negócio (`User`, `TaskItem`), *Enums* e as Interfaces de Contrato dos Repositórios. **Não possui dependências externas.**
-2. **`TaskFlow.Application`:** Camada de casos de uso. Contém os Serviços com as regras de negócio e os DTOs que mapeiam a entrada e saída de dados.
-3. **`TaskFlow.Infrastructure`:** Comunicação com o mundo externo. Contém a configuração do Entity Framework (`AppDbContext`), as *Migrations* e as implementações concretas dos Repositórios.
-4. **`TaskFlow.API`:** A porta de entrada do sistema. Contém os `Controllers` que expõem os endpoints HTTP e configura a Injeção de Dependências no pipeline da aplicação.
+Se a inicialização falhar, consulte `docker compose ps` e `docker compose logs sqlserver migrate api frontend`. Para parar os serviços sem apagar os dados, use `docker compose down`. Os dados ficam no volume `sqlserver_data`; `docker compose down --volumes` remove esse volume. Ao reutilizar o volume, mantenha a mesma senha, pois editar `.env` não altera a senha já gravada pelo SQL Server. Veja [como fazer backup do banco](docs/backup.md).
 
-### Projeto Vite/React (Front-end)
-* **`src/types`:** Interfaces TypeScript que espelham com precisão os DTOs da API.
-* **`src/services`:** Serviços de comunicação HTTP configurados centralizadamente com o Axios.
-* **`src/components`:** Componentes visuais modulares e reaproveitáveis para gerenciar o estado da tela.
+### Sem Docker
 
----
+Instale .NET SDK 10, Node.js 24 e SQL Server. A configuração de desenvolvimento em `Backend/TaskFlow.API/appsettings.Development.json` usa autenticação integrada do Windows. Em outro ambiente, defina `ConnectionStrings__DefaultConnection` com a sua conexão. Faça backup antes de aplicar migrações a um banco com dados.
 
-## ⚙️ Funcionalidades Implementadas
+Na raiz do repositório, inicie a API:
 
-* **Módulo de Usuários:**
-  * Cadastro de novos usuários via interface com integração imediata ao banco de dados.
-  * Listagem dinâmica de usuários com exibição de identificadores únicos (`Guid`).
-* **Módulo de Tarefas (CRUD Completo):**
-  * Criação de tarefas atreladas obrigatoriamente a um usuário existente (Relacionamento 1:N garantido por chave estrangeira no SQL Server).
-  * Controle visual de status das tarefas através de *Enums* estruturados (Pendente, Em Andamento, Concluída).
-  * Atualização parcial de dados (Conclusão de tarefa através do método HTTP `PATCH`).
-  * Remoção física do registro no banco de dados (Ação de exclusão via método HTTP `DELETE`).
-  * Atualização automática da interface reativa sem necessidade de recarregar a página (F5).
+```powershell
+dotnet tool restore
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+$env:ASPNETCORE_URLS = "http://127.0.0.1:5188"
+dotnet ef database update --project Backend/TaskFlow.Infrastructure --startup-project Backend/TaskFlow.API
+dotnet run --project Backend/TaskFlow.API --no-launch-profile
+```
 
----
+No Bash, use `export ASPNETCORE_ENVIRONMENT=Development` e `export ASPNETCORE_URLS=http://127.0.0.1:5188` no lugar das duas atribuições PowerShell. Em outro terminal, na raiz do repositório, inicie o frontend:
 
-## 🚀 Como executar o projeto localmente
+```powershell
+cd Frontend
+npm ci
+npm run dev
+```
 
-### Pré-requisitos
-* [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-* [Node.js](https://nodejs.org/) (Versão LTS)
-* [SQL Server](https://www.microsoft.com/pt-br/sql-server/sql-server-downloads) rodando localmente.
+Abra [http://127.0.0.1:5173](http://127.0.0.1:5173). O Vite encaminha `/api` para a API na porta `5188`.
 
----
+### Testes
 
-### 1. Configurando o Banco de Dados e o Back-end
+Na raiz do repositório:
 
-1. **Clone o repositório e entre na pasta do projeto:**
+```powershell
+dotnet test Backend/TaskFlow.sln
+cd Frontend
+npm ci
+npm test
+npm run lint
+npm run build
+```
 
-    git clone https://github.com/DevViniciusMenarim/Task-Flow.git
-    cd Task-Flow
+Os testes de integração com SQL Server são separados. Defina `TASKFLOW_TEST_SQL_CONNECTION` para **um servidor de testes** com permissão para criar bancos temporários e execute `dotnet test Backend/TaskFlow.IntegrationTests/TaskFlow.IntegrationTests.csproj` na raiz. A CI executa esses testes em um SQL Server isolado e verifica a aplicação via Compose.
 
-2. **Entre na pasta do Back-end (.NET):**
+## O que experimentar
 
-    cd TaskFlow
+1. Cadastre uma pessoa e crie uma tarefa com responsável, prioridade e prazo.
+2. Busque, filtre e ordene tarefas; os filtros ficam na URL para compartilhar a consulta.
+3. Adicione subtarefas e acompanhe o progresso e os indicadores de prazo no Resumo.
 
-3. **Verifique a String de Conexão:**
-   No arquivo `TaskFlow.API/appsettings.json`, certifique-se de que a string de conexão está apontando para o seu servidor local:
-
-    "ConnectionStrings": {
-      "DefaultConnection": "Server=localhost;Database=TaskFlowDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
-    }
-
-4. **Aplique as Migrations para criar o Banco de Dados:**
-   Ainda dentro da pasta `TaskFlow`, execute o comando do EF Core para gerar a base de dados:
-
-    dotnet ef database update --project TaskFlow.Infrastructure --startup-project TaskFlow.API
-
-5. **Execute a API C#:**
-
-    dotnet run --project TaskFlow.API/TaskFlow.API.csproj
-
-   *(A API estará rodando. Anote a porta local gerada no terminal, ex: `http://localhost:5188`)*
-
----
-
-### 2. Configurando o Front-end
-
-1. Abra um **novo terminal** na raiz do repositório (`Task-Flow`) e navegue até a pasta do cliente web:
-
-    cd taskflow-web
-
-2. **Aponte para a API:**
-   Abra o arquivo `src/services/api.ts` e certifique-se de que a `baseURL` está com a mesma porta que o C# gerou no passo anterior.
-
-3. Instale os pacotes do Node.js:
-
-    npm install
-
-4. Inicie o servidor de desenvolvimento do Vite:
-
-    npm run dev
-
-5. **Acesse o Sistema:**
-   Abra o navegador e acesse a URL local fornecida pelo Vite (geralmente `http://localhost:5173`). O painel do **TaskFlow Dashboard** estará totalmente operacional.
-
----
-
-## 👨‍💻 Sobre o Projeto
-
-Este ecossistema completo foi desenvolvido com o objetivo de consolidar de forma prática o conhecimento em arquitetura de software, aplicando as melhores ferramentas e convenções utilizadas pelo mercado corporativo para a construção de aplicações escaláveis e de fácil manutenção.
+O responsável ajuda a organizar as tarefas, mas não restringe quem pode vê-las ou editá-las.

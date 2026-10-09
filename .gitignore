@@ -9,7 +9,12 @@
 *.user
 *.userosscache
 *.sln.docstates
+# Local secrets. Keep example files available for version control.
 *.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.Production.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: TaskFlow_CI_2026!
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore local EF tool
+        run: dotnet tool restore
+      - name: Restore backend
+        run: dotnet restore Backend/TaskFlow.sln --locked-mode
+      - name: Build backend
+        run: dotnet build Backend/TaskFlow.sln --configuration Release --no-restore
+      - name: Test backend
+        run: dotnet test Backend/TaskFlow.sln --configuration Release --no-build --no-restore
+      - name: Restore SQL Server integration tests
+        run: dotnet restore Backend/TaskFlow.IntegrationTests/TaskFlow.IntegrationTests.csproj --locked-mode
+      - name: Test migrations and repositories with SQL Server
+        env:
+          TASKFLOW_TEST_SQL_CONNECTION: 'Server=127.0.0.1,1433;User ID=sa;Password=TaskFlow_CI_2026!;Encrypt=True;TrustServerCertificate=True'
+        run: dotnet test Backend/TaskFlow.IntegrationTests/TaskFlow.IntegrationTests.csproj --configuration Release --no-restore
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: Frontend
+        run: npm ci
+      - name: Test frontend
+        working-directory: Frontend
+        run: npm test
+      - name: Lint frontend
+        working-directory: Frontend
+        run: npm run lint
+      - name: Build frontend
+        working-directory: Frontend
+        run: npm run build
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: taskflow-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      WEB_PORT: '5173'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate temporary SQL Server password
+        id: password
+        run: |
+          password="Tf_$(openssl rand -hex 12)aA1!"
+          echo "::add-mask::$password"
+          echo "MSSQL_SA_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Build and start isolated stack
+        run: docker compose up --build --wait --wait-timeout 420 -d
+      - name: Check frontend and API through the proxy
+        run: |
+          curl --fail --silent --show-error --max-time 10 http://127.0.0.1:5173/ > /dev/null
+          curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:5173/api/Tasks/search?page=1&pageSize=1' | jq -e '.items | type == "array"' > /dev/null
+      - name: Show container logs on failure
+        if: failure() && steps.password.outcome == 'success'
+        run: |
+          docker compose ps || true
+          docker compose logs --no-color --tail=150 sqlserver migrate api frontend || true
+      - name: Remove isolated stack and volume
+        if: always() && steps.password.outcome == 'success'
+        run: docker compose down --volumes --remove-orphans

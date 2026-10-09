@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+!.env.example
+Frontend
+**/bin
+**/obj
+**/TestResults
+Backend/TaskFlow.Tests
+Backend/TaskFlow.IntegrationTests
